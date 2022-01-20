@@ -106,6 +106,7 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         self.start_test_pb.clicked.connect(self.start_test)
         self.test_dur_le.setText('15')
         self.analyze_slider.valueChanged.connect(self.slider_update)
+        self.analyze_slider.setValue(5)
 
     def select_folder (self):
         dialog = QFileDialog(self)
@@ -146,6 +147,13 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         self._update_plot()
 
     def load_board_db_field(self):
+        # Clear list widget of previously loaded DB
+        while self.b1_stats_lw.count() > 0 :
+            self.b1_stats_lw.takeItem(0)
+
+        while self.b2_stats_lw.count() > 0 :
+            self.b2_stats_lw.takeItem(0)
+
         self.board1_available_stats = self._load_b1_db().description()
         self.board2_available_stats = self._load_b2_db().description()
         for i in range(len(self.board1_available_stats['audioB1'])):
