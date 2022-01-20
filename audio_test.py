@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 from matplotlib import interactive
 matplotlib.use('Qt5Agg')
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT as NavigationToolbar
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas, NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 from datetime import datetime
 import os
@@ -42,14 +42,16 @@ sys.path.append(lib_path)
 import audio_analyzer as analyzer
 
 
-class MplCanvas(FigureCanvasQTAgg):
+class MplCanvas(FigureCanvas):
 
     def __init__(self, parent=None, width=5, height=4, dpi=100):
         fig = Figure(figsize=(width, height), dpi=dpi)
-        self.axes = fig.add_subplot(311)
+        self.axes  = fig.add_subplot(311)
         self.axes1 = fig.add_subplot(312)
         self.axes2 = fig.add_subplot(313)
         fig.set_tight_layout(True)
+        self.size = fig.get_size_inches()
+        self.dpi = dpi
         super(MplCanvas, self).__init__(fig)
 
 class Main(QtWidgets.QMainWindow, Ui_MainWindow):
@@ -94,7 +96,10 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
 
         # Create a placeholder widget to hold our toolbar and canvas.
         self.plot_wid.setLayout(layout)
-
+        self.scrollAreaWidgetContents.setSizePolicy(QtWidgets.QSizePolicy.Expanding,QtWidgets.QSizePolicy.Expanding)
+        self.scrollAreaWidgetContents.resize((self.sc.size[0] * self.sc.dpi) * 2.8,(self.sc.size[1] * self.sc.dpi) * 5)
+        self.scrollAreaWidgetContents.setLayout(layout)
+        self.scrollArea.setWidget(self.scrollAreaWidgetContents)
         self.show()
         self._update_plot()
 
