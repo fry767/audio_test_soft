@@ -37,7 +37,7 @@ import numpy as np
 import mplcursors
 
 # Add AudioAnalyzer/src to PYTHONPATH
-lib_path = os.path.abspath(os.path.join('audio_test_bench', 'AudioAnalyzer'))
+lib_path = os.path.abspath(os.path.join('../audio_test_bench', 'AudioAnalyzer'))
 sys.path.append(lib_path)
 import audio_analyzer as analyzer
 
@@ -282,6 +282,7 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def slider_update(self):
         self.analysis_sens_te.setText(str(self.analyze_slider.value()))
+
     def _build_up_db(self, statsB1, wpsB1, statsB2, wpsB2):
         # create filename
         table_name   = "audioB1"
@@ -290,7 +291,8 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         os.makedirs(path, exist_ok=True)
         now = datetime.now()
         now_dir = now.strftime("%d-%m-%Y_%H_%M_%S")
-        path = os.path.join(path, now_dir)
+        custom_label = self.test_lb.text() + now_dir
+        path = os.path.join(path, custom_label)
         os.makedirs(path, exist_ok=True)
         b1_db_name     = path + "/audioB1TX"
         b2_db_name     = path + "/audioB2TX"
