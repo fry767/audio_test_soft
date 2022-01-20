@@ -46,13 +46,23 @@ class MplCanvas(FigureCanvas):
 
     def __init__(self, parent=None, width=5, height=4, dpi=100):
         fig = Figure(figsize=(width, height), dpi=dpi)
-        self.axes  = fig.add_subplot(311)
-        self.axes1 = fig.add_subplot(312)
-        self.axes2 = fig.add_subplot(313)
+        self.axes_array = []
+        #self.axes  = fig.add_subplot(311)
+        #self.axes1 = fig.add_subplot(312)
+        #self.axes2 = fig.add_subplot(313)
         fig.set_tight_layout(True)
         self.size = fig.get_size_inches()
         self.dpi = dpi
-        super(MplCanvas, self).__init__(fig)
+        self.figure = fig
+        super(MplCanvas, self).__init__(self.figure)
+
+    def reload_figure(self, subplot_num) :
+        self.axes_array = []
+        self.figure.clear(True)
+        for i in range(subplot_num):
+            self.axes_array.append(self.figure.add_subplot(subplot_num,1, i + 1))
+        self.figure.set_tight_layout(True)
+        self.size = self.figure.get_size_inches()
 
 class Main(QtWidgets.QMainWindow, Ui_MainWindow):
     working_dir = 0
@@ -338,25 +348,34 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         return reader_instance
 
     def _update_plot(self):
-        self.sc.axes.cla()  # Clear the canvas.
-        self.sc.axes1.cla()
-        self.sc.axes2.cla()
-
-        self.sc.axes.set_title(self.g1_title)
-        self.sc.axes1.set_title(self.g2_title)
-        self.sc.axes2.set_title(self.g3_title)
-
+        #self.sc.axes.cla()  # Clear the canvas.
+        #self.sc.axes1.cla()
+        #self.sc.axes2.cla()
+#
+        #self.sc.axes.set_title(self.g1_title)
+        #self.sc.axes1.set_title(self.g2_title)
+        #self.sc.axes2.set_title(self.g3_title)
+        self.sc.reload_figure(len(self.y1['data']) + len(self.y2['data']) + 1)
+        j = 0
+        k = 0
         for i in range(len(self.y1['data'])):
-            self.sc.axes.plot(self.x1, self.y1['data'][i], label=self.y1['name'][i])
-        self.sc.axes.legend()
+            self.sc.axes_array[i].plot(self.x1, self.y1['data'][i], label=self.y1['name'][i])
+            #self.sc.axes.plot(self.x1, self.y1['data'][i], label=self.y1['name'][i])
+            self.sc.axes_array[i].legend()
+            self.sc.axes_array[i].set_title(self.g1_title)
+            mplcursors.cursor(self.sc.axes_array[i])
+            j = i + 1
         for i in range(len(self.y2['data'])):
-            self.sc.axes1.plot(self.x1, self.y2['data'][i], label=self.y2['name'][i])
-        self.sc.axes1.legend()
-        self.sc.axes2.plot(self.x3, self.y3, 'r')
+            self.sc.axes_array[j + i].plot(self.x1, self.y2['data'][i], label=self.y2['name'][i])
+            self.sc.axes_array[j + i].legend()
+            self.sc.axes_array[j + i].set_title(self.g2_title)
+            mplcursors.cursor(self.sc.axes_array[j + i])
+            k = i + j + 1
+        self.sc.axes_array[k].plot(self.x3, self.y3, 'r')
+        self.sc.axes_array[k].set_title(self.g3_title)
+        mplcursors.cursor(self.sc.axes_array[k])
         # Trigger the canvas to update and redraw.
-        mplcursors.cursor(self.sc.axes)
-        mplcursors.cursor(self.sc.axes1)
-        mplcursors.cursor(self.sc.axes2)
+
         self.sc.draw()
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
