@@ -157,6 +157,7 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         self.glitch_cb.setCurrentIndex(0)
         self.elapse_time_ms = elapse_time
         self.g1_title = "sinad"
+        self._clear_axis()
         self.x1 = list(range(0, len(self.record['sinad left'])))
         self.y1['name'].append('sinad left')
         self.y1['data'].append(self.record['sinad left'])
@@ -210,8 +211,7 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         self.g1_title = 'TX board'
         self.g2_title = 'RX board'
         self.g3_title = "Audio glitch"
-        self.y1['data'] = []
-        self.y1['name'] = []
+        self._clear_axis()
         for i in range(self.b1_stats_lw.count()):
             item = self.b1_stats_lw.item(i)
             if item.checkState():
@@ -219,9 +219,7 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
                 self.y1['data'].append(stats_to_plot_b1[glitch_windows_start : glitch_windows_stop])
                 self.y1['name'].append(self.board1_available_stats['audioB1'][i])
         self.x1 = self.elapse_time_ms[glitch_windows_start : glitch_windows_stop]
-        self.y2 = dict()
-        self.y2['data'] = []
-        self.y2['name'] = []
+
         for i in range(self.b2_stats_lw.count()):
             item = self.b2_stats_lw.item(i)
             if item.checkState():
@@ -349,13 +347,6 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         return reader_instance
 
     def _update_plot(self):
-        #self.sc.axes.cla()  # Clear the canvas.
-        #self.sc.axes1.cla()
-        #self.sc.axes2.cla()
-#
-        #self.sc.axes.set_title(self.g1_title)
-        #self.sc.axes1.set_title(self.g2_title)
-        #self.sc.axes2.set_title(self.g3_title)
         self.sc.reload_figure(len(self.y1['data']) + len(self.y2['data']) + 1)
         self.scrollAreaWidgetContents.resize(1400,400 * (len(self.sc.axes_array)))
         j = 0
@@ -373,12 +364,24 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
             self.sc.axes_array[j + i].set_title(self.g2_title)
             mplcursors.cursor(self.sc.axes_array[j + i])
             k = i + j + 1
-        self.sc.axes_array[k].plot(self.x3, self.y3, 'r')
-        self.sc.axes_array[k].set_title(self.g3_title)
-        mplcursors.cursor(self.sc.axes_array[k])
+
+        if len(self.y3) > 0:
+            self.sc.axes_array[k].plot(self.x3, self.y3, 'r')
+            self.sc.axes_array[k].set_title(self.g3_title)
+            mplcursors.cursor(self.sc.axes_array[k])
         # Trigger the canvas to update and redraw.
 
         self.sc.draw()
+
+    def _clear_axis(self):
+        self.x1 = []
+        self.x2 = []
+        self.x3 = []
+        self.y1['data'] = []
+        self.y2['data'] = []
+        self.y1['name'] = []
+        self.y2['name'] = []
+        self.y3 = []
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
