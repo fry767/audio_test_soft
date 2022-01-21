@@ -99,15 +99,16 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         self.y3 = []
         # Create toolbar, passing canvas as first parament, parent (self, the MainWindow) as second.
         toolbar = NavigationToolbar(self.sc, self)
+        layoutToolbar = QtWidgets.QVBoxLayout()
+        layoutToolbar.addWidget(toolbar)
 
         layout = QtWidgets.QVBoxLayout()
-        layout.addWidget(toolbar)
         layout.addWidget(self.sc)
 
         # Create a placeholder widget to hold our toolbar and canvas.
-        self.plot_wid.setLayout(layout)
-        self.scrollAreaWidgetContents.setSizePolicy(QtWidgets.QSizePolicy.Expanding,QtWidgets.QSizePolicy.Expanding)
-        self.scrollAreaWidgetContents.resize((self.sc.size[0] * self.sc.dpi) * 2.8,(self.sc.size[1] * self.sc.dpi) * 5)
+        self.plot_wid.setLayout(layoutToolbar)
+        #self.scrollAreaWidgetContents.setSizePolicy(QtWidgets.QSizePolicy.Fixed,QtWidgets.QSizePolicy.Fixed)
+        self.scrollAreaWidgetContents.resize(1400,400)
         self.scrollAreaWidgetContents.setLayout(layout)
         self.scrollArea.setWidget(self.scrollAreaWidgetContents)
         self.show()
@@ -356,6 +357,7 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         #self.sc.axes1.set_title(self.g2_title)
         #self.sc.axes2.set_title(self.g3_title)
         self.sc.reload_figure(len(self.y1['data']) + len(self.y2['data']) + 1)
+        self.scrollAreaWidgetContents.resize(1400,400 * (len(self.sc.axes_array)))
         j = 0
         k = 0
         for i in range(len(self.y1['data'])):
@@ -377,6 +379,7 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         # Trigger the canvas to update and redraw.
 
         self.sc.draw()
+
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     window = Main()
