@@ -97,6 +97,8 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         self.y2['data'] = []
         self.y2['name'] = []
         self.y3 = []
+        self.sinad = []
+        self.sinadx = []
         # Create toolbar, passing canvas as first parament, parent (self, the MainWindow) as second.
         toolbar = NavigationToolbar(self.sc, self)
         layoutToolbar = QtWidgets.QVBoxLayout()
@@ -160,9 +162,8 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         self.elapse_time_ms = elapse_time
         self.g1_title = "sinad"
         self._clear_axis()
-        self.x1 = list(range(0, len(self.record['sinad left'])))
-        self.y1['name'].append('sinad left')
-        self.y1['data'].append(self.record['sinad left'])
+        self.sinadx = list(range(0, len(self.record['sinad left'])))
+        self.sinad = self.record['sinad left']
         self._update_plot()
 
     def load_board_db_field(self):
@@ -357,17 +358,20 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         return reader_instance
 
     def _update_plot(self):
-        self.sc.reload_figure(len(self.y1['data']) + len(self.y2['data']) + 1)
-        self.scrollAreaWidgetContents.resize(1400,400 * (len(self.sc.axes_array)))
-        j = 0
-        k = 0
+        self.sc.reload_figure(len(self.y1['data']) + len(self.y2['data']) + 2)
+        self.scrollAreaWidgetContents.resize(1400,200 * (len(self.sc.axes_array)))
+        j = 1
+        k = 1
+        self.sc.axes_array[0].plot(self.sinadx, self.sinad, label='sinad')
+        self.sc.axes_array[0].legend()
+        self.sc.axes_array[0].set_title(self.g1_title)
         for i in range(len(self.y1['data'])):
-            self.sc.axes_array[i].plot(self.x1, self.y1['data'][i], label=self.y1['name'][i])
+            self.sc.axes_array[i + 1].plot(self.x1, self.y1['data'][i], label=self.y1['name'][i])
             #self.sc.axes.plot(self.x1, self.y1['data'][i], label=self.y1['name'][i])
-            self.sc.axes_array[i].legend()
-            self.sc.axes_array[i].set_title(self.g1_title)
-            mplcursors.cursor(self.sc.axes_array[i])
-            j = i + 1
+            self.sc.axes_array[i + 1].legend()
+            self.sc.axes_array[i + 1].set_title(self.g1_title)
+            mplcursors.cursor(self.sc.axes_array[i + 1])
+            j = i + 2
             k = j
         for i in range(len(self.y2['data'])):
             self.sc.axes_array[j + i].plot(self.x1, self.y2['data'][i], label=self.y2['name'][i])
