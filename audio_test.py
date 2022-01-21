@@ -123,6 +123,8 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         self.test_dur_le.setText('15')
         self.analyze_slider.valueChanged.connect(self.slider_update)
         self.analyze_slider.setValue(5)
+        self.clear_all_b1_pb.clicked.connect(self.clear_all_b1)
+        self.clear_all_b2_pb.clicked.connect(self.clear_all_b2)
 
     def select_folder (self):
         dialog = QFileDialog(self)
@@ -305,6 +307,14 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
     def slider_update(self):
         self.analysis_sens_te.setText(str(self.analyze_slider.value()))
 
+    def clear_all_b1(self):
+        for i in range(self.b1_stats_lw.count()):
+            self.b1_stats_lw.item(i).setCheckState(QtCore.Qt.Unchecked)
+
+    def clear_all_b2(self):
+        for i in range(self.b2_stats_lw.count()):
+            self.b2_stats_lw.item(i).setCheckState(QtCore.Qt.Unchecked)
+
     def _build_up_db(self, statsB1, wpsB1, statsB2, wpsB2):
         # create filename
         table_name   = "audioB1"
@@ -358,6 +368,7 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
             self.sc.axes_array[i].set_title(self.g1_title)
             mplcursors.cursor(self.sc.axes_array[i])
             j = i + 1
+            k = j
         for i in range(len(self.y2['data'])):
             self.sc.axes_array[j + i].plot(self.x1, self.y2['data'][i], label=self.y2['name'][i])
             self.sc.axes_array[j + i].legend()
