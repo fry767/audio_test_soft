@@ -136,11 +136,13 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         dialog = QFileDialog(self)
         working_dir = dialog.getOpenFileName(self, 'Choose audio.wav file', os.getcwd())
         self.working_dir = working_dir[0].replace("audio.wav", "")
+        self.log_te.append("Folder properly loaded !")
         self.load_lb.setText("Folder properly loaded !")
 
     def analyze_audio(self):
         self.record = self.analyzer_rec.read_audio_file(self.working_dir + 'audio.wav')
         self.analyzer_rec.analyze_audio(self.record, self.analyze_slider.value())
+        self.log_te.append("Analysis finished, starting glitch extraction")
         self.load_lb.setText("Analysis finished, starting glitch extraction")
         # TODO only one elapse time, could get one for both board
         elapse_time = self._load_b1_db().read('audioB1', 'elapsed_time_ms')
@@ -291,11 +293,13 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         try :
             cliB1.connect()
         except TimeoutError as e:
+            self.log_te.append("Cant connect to board 1, check if serial is not connected elsewhere")
             self.load_lb.setText("Cant connect to board 1, check if serial is not connected elsewhere")
             return
         try :
             cliB2.connect()
         except TimeoutError as e:
+            self.log_te.append("Cant connect to board 1, check if serial is not connected elsewhere")
             self.load_lb.setText("Cant connect to board 2, check if serial is not connected elsewhere")
             return
         self.audioB1 = cliB1.launch_audio()
@@ -308,6 +312,7 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
             self.audioB2.set_cfg_file("board2_unidir")
         self.audioB1.start()
         self.audioB2.start()
+        self.log_te.append("Connected to boards")
         self.load_lb.setText("Connected to board")
         time.sleep(1)
         self.audioB1.wps.reset_stats()
@@ -315,6 +320,7 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         statsB1, wps = self.audioB1.get_stats()
         statsB2, wpsB2 = self.audioB2.get_stats()
         self._build_up_db(statsB1, wps, statsB2, wpsB2)
+        self.log_te.append("DB build")
         self.load_lb.setText("DB build")
         self._log_register_dump()
         self._log_board_cfg()
@@ -349,6 +355,7 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
 
         sd.wait()  # Wait until recording is finished
         write(self.recording_name, fs, myrecording)  # Save as WAV file
+        self.log_te.append("Test finished !!!!!")
         self.load_lb.setText("Test finished !!!!!")
         self.test_progb.setValue(100)
 

@@ -17,8 +17,8 @@
    <widget class="QProgressBar" name="test_progb">
     <property name="geometry">
      <rect>
-      <x>840</x>
-      <y>80</y>
+      <x>1110</x>
+      <y>130</y>
       <width>118</width>
       <height>23</height>
      </rect>
@@ -30,7 +30,7 @@
    <widget class="QPushButton" name="start_test_pb">
     <property name="geometry">
      <rect>
-      <x>900</x>
+      <x>1090</x>
       <y>40</y>
       <width>80</width>
       <height>23</height>
@@ -43,7 +43,7 @@
    <widget class="QPushButton" name="Connect_pb">
     <property name="geometry">
      <rect>
-      <x>810</x>
+      <x>1000</x>
       <y>40</y>
       <width>80</width>
       <height>23</height>
@@ -56,7 +56,7 @@
    <widget class="QLabel" name="load_lb">
     <property name="geometry">
      <rect>
-      <x>630</x>
+      <x>890</x>
       <y>160</y>
       <width>451</width>
       <height>21</height>
@@ -89,7 +89,7 @@
    <widget class="QLineEdit" name="test_dur_le">
     <property name="geometry">
      <rect>
-      <x>990</x>
+      <x>1180</x>
       <y>40</y>
       <width>113</width>
       <height>29</height>
@@ -209,7 +209,7 @@
    <widget class="QLineEdit" name="test_lb">
     <property name="geometry">
      <rect>
-      <x>990</x>
+      <x>1180</x>
       <y>80</y>
       <width>113</width>
       <height>29</height>
@@ -268,7 +268,7 @@
    <widget class="QRadioButton" name="duo_rb">
     <property name="geometry">
      <rect>
-      <x>810</x>
+      <x>1000</x>
       <y>10</y>
       <width>101</width>
       <height>22</height>
@@ -276,6 +276,16 @@
     </property>
     <property name="text">
      <string>DUO</string>
+    </property>
+   </widget>
+   <widget class="QTextEdit" name="log_te">
+    <property name="geometry">
+     <rect>
+      <x>630</x>
+      <y>100</y>
+      <width>251</width>
+      <height>181</height>
+     </rect>
     </property>
    </widget>
   </widget>
