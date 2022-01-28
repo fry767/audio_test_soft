@@ -36,6 +36,8 @@ from audio_test_ui import Ui_MainWindow
 import numpy as np
 import mplcursors
 import json
+from board_ui import Ui_board_selector_window
+import board
 
 # Add AudioAnalyzer/src to PYTHONPATH
 lib_path = os.path.abspath(os.path.join('../audio_test_bench', 'AudioAnalyzer'))
@@ -102,6 +104,12 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         self.sinadyZoom = []
         self.sinadx = []
         self.sinadxZoom = []
+
+        #Board window
+        self.new_window = QtWidgets.QMainWindow()
+        self.board_ui = Ui_board_selector_window()
+        self.board_ui.setupUi(self.new_window)
+        self.board_ui_available_board = []
         # Create toolbar, passing canvas as first parament, parent (self, the MainWindow) as second.
         toolbar = NavigationToolbar(self.sc, self)
         layoutToolbar = QtWidgets.QVBoxLayout()
@@ -132,6 +140,9 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         self.clear_all_b1_pb.clicked.connect(self.clear_all_b1)
         self.clear_all_b2_pb.clicked.connect(self.clear_all_b2)
 
+        self.board_selector_pb.clicked.connect(self._open_board_window)
+        self.board_ui.b1_id_pb.clicked.connect(self._board_window_id_board1)
+        self.board_ui.b2_id_pb.clicked.connect(self._board_window_id_board2)
     def select_folder (self):
         dialog = QFileDialog(self)
         working_dir = dialog.getOpenFileName(self, 'Choose audio.wav file', os.getcwd())
@@ -468,6 +479,59 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         file = open(str(self.working_test_path) + '/cfg_B2.txt', 'w')
         file.write(json.dumps(self.audioB2.wps.get_config(), indent=4))
         file.close()
+
+
+    #### BOARD WINDOWS ####
+    def _open_board_window(self):
+        while self.board_ui.board_lw.count() > 0 :
+            self.board_ui.board_lw.takeItem(0)
+        while self.board_ui.board2_lw.count() > 0 :
+            self.board_ui.board2_lw.takeItem(0)
+        available_board = board.get_available_serial()
+        for i in range(len(available_board)):
+           item = QtWidgets.QListWidgetItem()
+           item.setText(available_board[i])
+           item.setFlags(item.flags() | QtCore.Qt.ItemIsUserCheckable)
+           item.setCheckState(QtCore.Qt.Unchecked)
+           self.board_ui.board_lw.addItem(item)
+        for i in range(len(available_board)):
+           item = QtWidgets.QListWidgetItem()
+           item.setText(available_board[i])
+           item.setFlags(item.flags() | QtCore.Qt.ItemIsUserCheckable)
+           item.setCheckState(QtCore.Qt.Unchecked)
+           self.board_ui.board2_lw.addItem(item)
+        self.board_ui_available_board = available_board
+        self.new_window.show()
+
+    def _board_window_id_board1(self):
+
+        lw = self.board_ui.board_lw
+        for i in range(lw.count()):
+            item = lw.item(i)
+            if item.checkState():
+                id_cli = SparkCLI(self.board_ui_available_board[i], '../spark-dev/app/demo/common/protocol/src/proto/')
+                try :
+                    id_cli.connect()
+                except TimeoutError as e:
+                    self.log_te.append("Cant connect to board, check if serial is not connected elsewhere")
+                    return
+                id_cli.init_id()
+                break
+
+    def _board_window_id_board2(self):
+
+        lw = self.board_ui.board2_lw
+        for i in range(lw.count()):
+            item = lw.item(i)
+            if item.checkState():
+                id_cli = SparkCLI(self.board_ui_available_board[i], '../spark-dev/app/demo/common/protocol/src/proto/')
+                try :
+                    id_cli.connect()
+                except TimeoutError as e:
+                    self.log_te.append("Cant connect to board, check if serial is not connected elsewhere")
+                    return
+                id_cli.init_id()
+                break
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     window = Main()
