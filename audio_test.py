@@ -35,6 +35,7 @@ from spark_cli.spark_cli_app import SparkCliApp
 from audio_test_ui import Ui_MainWindow
 import numpy as np
 import mplcursors
+import json
 
 # Add AudioAnalyzer/src to PYTHONPATH
 lib_path = os.path.abspath(os.path.join('../audio_test_bench', 'AudioAnalyzer'))
@@ -98,7 +99,9 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         self.y2['name'] = []
         self.y3 = []
         self.sinad = []
+        self.sinadyZoom = []
         self.sinadx = []
+        self.sinadxZoom = []
         # Create toolbar, passing canvas as first parament, parent (self, the MainWindow) as second.
         toolbar = NavigationToolbar(self.sc, self)
         layoutToolbar = QtWidgets.QVBoxLayout()
@@ -123,6 +126,7 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         self.Connect_pb.clicked.connect(self.connect_to_board)
         self.start_test_pb.clicked.connect(self.start_test)
         self.test_dur_le.setText('15')
+        self.test_progb.setValue(0)
         self.analyze_slider.valueChanged.connect(self.slider_update)
         self.analyze_slider.setValue(5)
         self.clear_all_b1_pb.clicked.connect(self.clear_all_b1)
@@ -162,8 +166,16 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         self.elapse_time_ms = elapse_time
         self.g1_title = "sinad"
         self._clear_axis()
-        self.sinadx = list(range(0, len(self.record['sinad left'])))
+        input_data = read(self.working_dir + '/audio.wav')
+        audio = input_data[1]
+        test_duration_length = len(audio)/44100
+        step = int((test_duration_length / len(self.record['sinad left'])) * 1000)
+        self.sinadx = []
+        for i in range(len(self.record['sinad left'])):
+            self.sinadx.append(i * step)
         self.sinad = self.record['sinad left']
+        self.sinadxZoom = self.sinadx
+        self.sinadyZoom = self.sinad
         self._update_plot()
 
     def load_board_db_field(self):
@@ -244,24 +256,56 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         #    end = int(int(self.show_to_le.text()) * 44100)
         #    for j in range(end - start):
         #        x_axis_audio.append((int(start/44100) + j * 1/44100) * 1000)
+        self.x3 = x_axis_audio
+        self.y3 = audio[start : end]
 
-            self.x3 = x_axis_audio
-            self.y3 = audio[start : end]
+        if bypass_glitch_window:
+            self.sinadxZoom = []
+            self.sinadyZoom = []
+            windows_fetch = False
+            start = int(int(self.show_from_le.text()) * 1000)
+            end = int(int(self.show_to_le.text()) * 1000)
+            window_start = 0
+            window_stop = 0
+            for i in range(len(self.sinadx)):
+                if (self.sinadx[i] >= start and windows_fetch == False):
+                    window_start = i
+                    windows_fetch = True
+                elif (self.sinadx[i] >= end and windows_fetch):
+                    windows_fetch = False
+                    window_stop = i
+                    break
+            self.sinadxZoom = self.sinadx[window_start : window_stop]
+            self.sinadyZoom = self.sinad[window_start : window_stop]
+
         self._update_plot()
 
     def connect_to_board(self):
-        #duo
-        cliB1 = SparkCLI('207D38A35056','../spark-dev/app/demo/common/protocol/src/proto/')
-        cliB2 = SparkCLI('207538A35056','../spark-dev/app/demo/common/protocol/src/proto/')
-        #evk
-        #cliB1 = SparkCLI('205A33A5484E','../spark-dev/app/demo/common/protocol/src/proto/')
-        #cliB2 = SparkCLI('2082338E484E','../spark-dev/app/demo/common/protocol/src/proto/')
-        cliB1.connect()
-        cliB2.connect()
+        if self.duo_rb.isChecked() :
+            #duo
+            cliB1 = SparkCLI('207D38A35056','../spark-dev/app/demo/common/protocol/src/proto/')
+            cliB2 = SparkCLI('207538A35056','../spark-dev/app/demo/common/protocol/src/proto/')
+        else :
+            cliB1 = SparkCLI('205A33A5484E','../spark-dev/app/demo/common/protocol/src/proto/')
+            cliB2 = SparkCLI('2082338E484E','../spark-dev/app/demo/common/protocol/src/proto/')
+        try :
+            cliB1.connect()
+        except TimeoutError as e:
+            self.load_lb.setText("Cant connect to board 1, check if serial is not connected elsewhere")
+            return
+        try :
+            cliB2.connect()
+        except TimeoutError as e:
+            self.load_lb.setText("Cant connect to board 2, check if serial is not connected elsewhere")
+            return
         self.audioB1 = cliB1.launch_audio()
         self.audioB2 = cliB2.launch_audio()
-        self.audioB1.set_cfg_file("board1_unidir")
-        self.audioB2.set_cfg_file("board2_unidir")
+        if self.duo_rb.isChecked() :
+            self.audioB1.set_cfg_file("board1_unidir")
+            self.audioB2.set_cfg_file("board2_unidir")
+        else :
+            self.audioB1.set_cfg_file("board1_unidir")
+            self.audioB2.set_cfg_file("board2_unidir")
         self.audioB1.start()
         self.audioB2.start()
         self.load_lb.setText("Connected to board")
@@ -272,10 +316,12 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         statsB2, wpsB2 = self.audioB2.get_stats()
         self._build_up_db(statsB1, wps, statsB2, wpsB2)
         self.load_lb.setText("DB build")
+        self._log_register_dump()
+        self._log_board_cfg()
 
     def start_test(self):
         fs = 44100  # Sample rate
-        seconds = int(self.test_dur_le.text()) * 60  # Duration of recording
+        seconds = int(float(self.test_dur_le.text()) * 60)  # Duration of recording
         x = sd.query_devices()
         sd.default.device = 'HD-Audio Generic: ALC1220 Analog (hw:1,0)'
         file = open(str(self.working_test_path) + '/absolute_start.txt', 'w')
@@ -304,6 +350,7 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         sd.wait()  # Wait until recording is finished
         write(self.recording_name, fs, myrecording)  # Save as WAV file
         self.load_lb.setText("Test finished !!!!!")
+        self.test_progb.setValue(100)
 
     def slider_update(self):
         self.analysis_sens_te.setText(str(self.analyze_slider.value()))
@@ -362,9 +409,11 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         self.scrollAreaWidgetContents.resize(1400,200 * (len(self.sc.axes_array)))
         j = 1
         k = 1
-        self.sc.axes_array[0].plot(self.sinadx, self.sinad, label='sinad')
+        self.sc.axes_array[0].plot(self.sinadxZoom, self.sinadyZoom, label='sinad')
         self.sc.axes_array[0].legend()
         self.sc.axes_array[0].set_title(self.g1_title)
+        self.sinadxZoom  = self.sinadx
+        self.sinadyZoom =  self.sinad
         for i in range(len(self.y1['data'])):
             self.sc.axes_array[i + 1].plot(self.x1, self.y1['data'][i], label=self.y1['name'][i])
             #self.sc.axes.plot(self.x1, self.y1['data'][i], label=self.y1['name'][i])
@@ -398,6 +447,20 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         self.y2['name'] = []
         self.y3 = []
 
+    def _log_register_dump(self):
+        file = open(str(self.working_test_path) + '/reg_dumpB1.txt', 'w')
+        file.write(self.audioB1.wps.dump_register())
+        file.close()
+        file = open(str(self.working_test_path) + '/reg_dumpB2.txt', 'w')
+        file.write(self.audioB2.wps.dump_register())
+        file.close()
+    def _log_board_cfg(self):
+        file = open(str(self.working_test_path) + '/cfg_B1.txt', 'w')
+        file.write(json.dumps(self.audioB1.wps.get_config(), indent=4))
+        file.close()
+        file = open(str(self.working_test_path) + '/cfg_B2.txt', 'w')
+        file.write(json.dumps(self.audioB2.wps.get_config(), indent=4))
+        file.close()
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     window = Main()
