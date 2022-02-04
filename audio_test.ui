@@ -257,7 +257,7 @@
      <rect>
       <x>1000</x>
       <y>10</y>
-      <width>101</width>
+      <width>56</width>
       <height>22</height>
      </rect>
     </property>
@@ -286,6 +286,19 @@
     </property>
     <property name="text">
      <string>Board selector</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="no_audio_cb">
+    <property name="geometry">
+     <rect>
+      <x>1070</x>
+      <y>10</y>
+      <width>86</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>No Audio</string>
     </property>
    </widget>
   </widget>

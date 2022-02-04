@@ -44,7 +44,9 @@ lib_path = os.path.abspath(os.path.join('../audio_test_bench', 'AudioAnalyzer'))
 sys.path.append(lib_path)
 import audio_analyzer as analyzer
 
-
+table_name   = "audioB1"
+table_nameB2 = "audioB2"
+table_abs_time = "absTime"
 class MplCanvas(FigureCanvas):
 
     def __init__(self, parent=None, width=5, height=4, dpi=100):
@@ -85,7 +87,6 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
     writer_instance = 0
     writer_instanceB2 = 0
     recording_name = 0
-    absolute_start_time = 0
     def __init__(self):
         QtWidgets.QMainWindow.__init__(self)
         self.setupUi(self)
@@ -148,8 +149,8 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         self.working_dir = dialog.getExistingDirectory(self, 'Choose test output folder', os.getcwd())
         self.log_te.append("Folder properly loaded !")
         #Check DB data number
-        elapse_timeB1 = self._load_b1_db().read('audioB1', 'elapsed_time_ms')
-        elapse_timeB2 = self._load_b2_db().read('audioB2', 'elapsed_time_ms')
+        elapse_timeB1 = self._load_b1_db().read(table_name, 'elapsed_time_ms')
+        elapse_timeB2 = self._load_b2_db().read(table_nameB2, 'elapsed_time_ms')
         if len(elapse_timeB1) != len(elapse_timeB2):
             self.log_te.append("Invalid stats input, length dont match")
         # TODO only one elapse time, could get one for both board
@@ -160,7 +161,6 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
             self.analyzer_rec.analyze_audio(self.record, self.analyze_slider.value())
             self.log_te.append("Analysis finished, starting glitch extraction")
             elapse_time = self.elapse_time_ms
-            time_idx = 0
             test_margin = 1 # 1second
             glitch_started = False
             glitch_details = []
@@ -205,15 +205,15 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.board1_available_stats = self._load_b1_db().description()
         self.board2_available_stats = self._load_b2_db().description()
-        for i in range(len(self.board1_available_stats['audioB1'])):
+        for i in range(len(self.board1_available_stats[table_name])):
            item = QtWidgets.QListWidgetItem()
-           item.setText(self.board1_available_stats['audioB1'][i])
+           item.setText(self.board1_available_stats[table_name][i])
            item.setFlags(item.flags() | QtCore.Qt.ItemIsUserCheckable)
            item.setCheckState(QtCore.Qt.Unchecked)
            self.b1_stats_lw.addItem(item)
-        for i in range(len(self.board2_available_stats['audioB2'])):
+        for i in range(len(self.board2_available_stats[table_nameB2])):
            item = QtWidgets.QListWidgetItem()
-           item.setText(self.board2_available_stats['audioB2'][i])
+           item.setText(self.board2_available_stats[table_nameB2][i])
            item.setFlags(item.flags() | QtCore.Qt.ItemIsUserCheckable)
            item.setCheckState(QtCore.Qt.Unchecked)
            self.b2_stats_lw.addItem(item)
@@ -247,7 +247,7 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         elif self.no_audio:
             glitch_windows_start = 0
             #dummy read one row of the stats to check how much available to plot
-            stats_to_plot_b1 = self._load_b1_db().read('audioB1', self.board1_available_stats['audioB1'][0])
+            stats_to_plot_b1 = self._load_b1_db().read(table_name, self.board1_available_stats[table_name][0])
             glitch_windows_stop  = len(stats_to_plot_b1)
         else:
             glitch_windows_start = self.db_glitch_start[self.glitch_cb.currentIndex()]
@@ -259,17 +259,17 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         for i in range(self.b1_stats_lw.count()):
             item = self.b1_stats_lw.item(i)
             if item.checkState():
-                stats_to_plot_b1 = self._load_b1_db().read('audioB1', self.board1_available_stats['audioB1'][i])
+                stats_to_plot_b1 = self._load_b1_db().read(table_name, self.board1_available_stats[table_name][i])
                 self.y1['data'].append(stats_to_plot_b1[glitch_windows_start : glitch_windows_stop])
-                self.y1['name'].append(self.board1_available_stats['audioB1'][i])
+                self.y1['name'].append(self.board1_available_stats[table_name][i])
         self.x1 = self.elapse_time_ms[glitch_windows_start : glitch_windows_stop]
 
         for i in range(self.b2_stats_lw.count()):
             item = self.b2_stats_lw.item(i)
             if item.checkState():
-                stats_to_plot_b2 = self._load_b2_db().read('audioB2', self.board2_available_stats['audioB2'][i])
+                stats_to_plot_b2 = self._load_b2_db().read(table_nameB2, self.board2_available_stats[table_nameB2][i])
                 self.y2['data'].append(stats_to_plot_b2[glitch_windows_start : glitch_windows_stop])
-                self.y2['name'].append(self.board2_available_stats['audioB2'][i])
+                self.y2['name'].append(self.board2_available_stats[table_nameB2][i])
         self.x2 = self.x1
 
         # Compute audio X axis
@@ -341,22 +341,17 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         statsB2, wpsB2 = self.audioB2.get_stats()
         self._build_up_db(statsB1, wps, statsB2, wpsB2)
         self.log_te.append("DB build")
-        #time.sleep(1)
-        #self._log_register_dump()
-        #time.sleep(1)
-        #self._log_board_cfg()
-        #time.sleep(1)
 
     def start_test(self):
-        fs = 44100  # Sample rate
         seconds = int(float(self.test_dur_le.text()) * 60)  # Duration of recording
-        x = sd.query_devices()
-        sd.default.device = 'HD-Audio Generic: ALC1220 Analog (hw:1,0)'
-        file = open(str(self.working_test_path) + '/absolute_start.txt', 'w')
-        myrecording = sd.rec(int(seconds * fs), samplerate=fs, channels=1)
-        self.absolute_start_time = datetime.timestamp(datetime.now())
-        file.write(str(self.absolute_start_time))
-        file.close()
+        if (not self.no_audio_cb.isChecked()):
+            fs = 44100  # Sample rate
+            x = sd.query_devices()
+            sd.default.device = 'HD-Audio Generic: ALC1220 Analog (hw:1,0)'
+            myrecording = sd.rec(int(seconds * fs), samplerate=fs, channels=1)
+        #Populate absolute time table in DB
+        absolute_time = dict()
+        absolute_time['time_0'] = datetime.timestamp(datetime.now())
         self.audioB1.wps.reset_stats()
         self.audioB2.wps.reset_stats()
         self.audioB1.get_stats()
@@ -375,8 +370,15 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
             self.test_progb.setValue(int(((i) / (seconds * 5)) * 100))
             process_dur = datetime.timestamp(datetime.now()) - process_start
 
-        sd.wait()  # Wait until recording is finished
-        write(self.recording_name, fs, myrecording)  # Save as WAV file
+        if (not self.no_audio_cb.isChecked()):
+            sd.wait()  # Wait until recording is finished
+            write(self.recording_name, fs, myrecording)  # Save as WAV file
+        self.writer_instance.insert(table_abs_time, absolute_time)
+        self.writer_instanceB2.insert(table_abs_time, absolute_time)
+        self._log_register_dump()
+        time.sleep(1)
+        self._log_board_cfg()
+        time.sleep(1)
         self.log_te.append("Test finished !!!!!")
         self.test_progb.setValue(100)
 
@@ -393,8 +395,6 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def _build_up_db(self, statsB1, wpsB1, statsB2, wpsB2):
         # create filename
-        table_name   = "audioB1"
-        table_nameB2 = "audioB2"
         path         = "test_result"
         os.makedirs(path, exist_ok=True)
         now = datetime.now()
@@ -402,8 +402,8 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         custom_label = self.test_lb.text() + now_dir
         path = os.path.join(path, custom_label)
         os.makedirs(path, exist_ok=True)
-        b1_db_name     = path + "/audioB1TX"
-        b2_db_name     = path + "/audioB2TX"
+        b1_db_name     = path + "/" + table_name
+        b2_db_name     = path + "/" + table_nameB2
         self.recording_name = path + "/audio.wav"
         self.working_test_path = path
         # Create database
@@ -412,24 +412,35 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         # Create table
         statsB1.update(wpsB1)
         statsB2.update(wpsB2)
+
+        absolute_time = dict()
+        absolute_time['time_0'] = []
         self.writer_instance.create_table(table_name, statsB1)
+        self.writer_instance.create_table(table_abs_time, absolute_time)
         self.writer_instanceB2.create_table(table_nameB2, statsB2)
+        self.writer_instanceB2.create_table(table_abs_time, absolute_time)
 
     def _update_db(self, statsB1, wpsB1, statsB2, wpsB2):
-        table_name   = "audioB1"
-        table_nameB2 = "audioB2"
         statsB1.update(wpsB1)
         statsB2.update(wpsB2)
         self.writer_instance.insert(table_name, statsB1)
         self.writer_instanceB2.insert(table_nameB2, statsB2)
-    def _load_b1_db(self)   :
-        db_name = self.working_dir + "/audioB1TX"  # Create database in RAM
-        reader_instance = DataReaderSQLite(db_name)
+    def _load_b1_db(self) :
+        if (os.path.exists(self.working_dir + "/audioB1TX")):
+            db_name = self.working_dir + "/audioB1TX"  # Create database in RAM
+            reader_instance = DataReaderSQLite(db_name)
+        else:
+            db_name = self.working_dir + "/" + table_name  # Create database in RAM
+            reader_instance = DataReaderSQLite(db_name)
         return reader_instance
 
     def _load_b2_db(self):
-        db_name = self.working_dir + "/audioB2TX"  # Create database in RAM
-        reader_instance = DataReaderSQLite(db_name)
+        if (os.path.exists(self.working_dir + "/audioB2TX")):
+            db_name = self.working_dir + "/audioB2TX"  # Create database in RAM
+            reader_instance = DataReaderSQLite(db_name)
+        else:
+            db_name = self.working_dir + "/" + table_nameB2  # Create database in RAM
+            reader_instance = DataReaderSQLite(db_name)
         return reader_instance
 
     def _update_plot(self):
