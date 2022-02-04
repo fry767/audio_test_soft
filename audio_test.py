@@ -104,7 +104,7 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         self.sinadyZoom = []
         self.sinadx = []
         self.sinadxZoom = []
-
+        self.no_audio = False
         #Board window
         self.new_window = QtWidgets.QMainWindow()
         self.board_ui = Ui_board_selector_window()
@@ -145,52 +145,56 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         self.board_ui.b2_id_pb.clicked.connect(self._board_window_id_board2)
     def select_folder (self):
         dialog = QFileDialog(self)
-        working_dir = dialog.getOpenFileName(self, 'Choose audio.wav file', os.getcwd())
-        self.working_dir = working_dir[0].replace("audio.wav", "")
+        self.working_dir = dialog.getExistingDirectory(self, 'Choose test output folder', os.getcwd())
         self.log_te.append("Folder properly loaded !")
-        self.load_lb.setText("Folder properly loaded !")
-
-    def analyze_audio(self):
-        self.record = self.analyzer_rec.read_audio_file(self.working_dir + 'audio.wav')
-        self.analyzer_rec.analyze_audio(self.record, self.analyze_slider.value())
-        self.log_te.append("Analysis finished, starting glitch extraction")
-        self.load_lb.setText("Analysis finished, starting glitch extraction")
+        #Check DB data number
+        elapse_timeB1 = self._load_b1_db().read('audioB1', 'elapsed_time_ms')
+        elapse_timeB2 = self._load_b2_db().read('audioB2', 'elapsed_time_ms')
+        if len(elapse_timeB1) != len(elapse_timeB2):
+            self.log_te.append("Invalid stats input, length dont match")
         # TODO only one elapse time, could get one for both board
-        elapse_time = self._load_b1_db().read('audioB1', 'elapsed_time_ms')
-        time_idx = 0
-        test_margin = 1 # 1second
-        glitch_started = False
-        glitch_details = []
-        for i in range(len(self.record['glitch left']['start'])):
-            glitch_start_time = self.record['glitch left']['start'][i] - test_margin
-            glitch_end = self.record['glitch left']['end'][i] + test_margin
-            for i in range(len(elapse_time) - 1):
-                if elapse_time[i]/1000 >= glitch_start_time and not glitch_started:
-                    self.db_glitch_start.append(i)
-                    glitch_started = True
-                elif elapse_time[i]/1000 >= glitch_end and glitch_started:
-                    self.db_glitch_end.append(i)
-                    glitch_started = False
-                    glitch_details.append(str(glitch_end - glitch_start_time))
-                    break
-        self.glitch_cb.clear()
-        self.glitch_cb.addItems(glitch_details)
-        self.glitch_cb.setCurrentIndex(0)
-        self.elapse_time_ms = elapse_time
-        self.g1_title = "sinad"
-        self._clear_axis()
-        input_data = read(self.working_dir + '/audio.wav')
-        audio = input_data[1]
-        test_duration_length = len(audio)/44100
-        step = int((test_duration_length / len(self.record['sinad left'])) * 1000)
-        self.sinadx = []
-        for i in range(len(self.record['sinad left'])):
-            self.sinadx.append(i * step)
-        self.sinad = self.record['sinad left']
-        self.sinadxZoom = self.sinadx
-        self.sinadyZoom = self.sinad
-        self._update_plot()
-
+        self.elapse_time_ms = elapse_timeB1
+    def analyze_audio(self):
+        if os.path.exists(self.working_dir + '/audio.wav'):
+            self.record = self.analyzer_rec.read_audio_file(self.working_dir + '/audio.wav')
+            self.analyzer_rec.analyze_audio(self.record, self.analyze_slider.value())
+            self.log_te.append("Analysis finished, starting glitch extraction")
+            elapse_time = self.elapse_time_ms
+            time_idx = 0
+            test_margin = 1 # 1second
+            glitch_started = False
+            glitch_details = []
+            for i in range(len(self.record['glitch left']['start'])):
+                glitch_start_time = self.record['glitch left']['start'][i] - test_margin
+                glitch_end = self.record['glitch left']['end'][i] + test_margin
+                for i in range(len(elapse_time) - 1):
+                    if elapse_time[i]/1000 >= glitch_start_time and not glitch_started:
+                        self.db_glitch_start.append(i)
+                        glitch_started = True
+                    elif elapse_time[i]/1000 >= glitch_end and glitch_started:
+                        self.db_glitch_end.append(i)
+                        glitch_started = False
+                        glitch_details.append(str(glitch_end - glitch_start_time))
+                        break
+            self.glitch_cb.clear()
+            self.glitch_cb.addItems(glitch_details)
+            self.glitch_cb.setCurrentIndex(0)
+            self.g1_title = "Audio SINAD"
+            self._clear_axis()
+            input_data = read(self.working_dir + '/audio.wav')
+            audio = input_data[1]
+            test_duration_length = len(audio)/44100
+            step = int((test_duration_length / len(self.record['sinad left'])) * 1000)
+            self.sinadx = []
+            for i in range(len(self.record['sinad left'])):
+                self.sinadx.append(i * step)
+            self.sinad = self.record['sinad left']
+            self.sinadxZoom = self.sinadx
+            self.sinadyZoom = self.sinad
+            self._update_plot()
+        else:
+            self.no_audio = True
+            self.log_te.append("Cant find audio.wav files")
     def load_board_db_field(self):
         # Clear list widget of previously loaded DB
         while self.b1_stats_lw.count() > 0 :
@@ -217,11 +221,17 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
     def plot_data(self):
         glitch_windows_start = 0
         glitch_windows_stop  = 0
-        input_data = read(self.working_dir + '/audio.wav')
-        audio = input_data[1]
+        if os.path.exists(self.working_dir + '/audio.wav'):
+            self.no_audio = False
+        else:
+            self.no_audio = True
+
+        if not self.no_audio:
+            input_data = read(self.working_dir + '/audio.wav')
+            audio = input_data[1]
         custom_window_started = False
         bypass_glitch_window  = False
-        if self.show_bet_cb.isChecked():
+        if self.show_bet_cb.isChecked() :
             #bypass glitch windows
             if self.show_from_le.text() != "" and self.show_to_le.text() != "":
                 bypass_glitch_window = True
@@ -233,6 +243,12 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
                         glitch_windows_stop = i
                         custom_window_started = False
                         break
+        #no audio available, simply plot stat for the entire map if show_bet is not use
+        elif self.no_audio:
+            glitch_windows_start = 0
+            #dummy read one row of the stats to check how much available to plot
+            stats_to_plot_b1 = self._load_b1_db().read('audioB1', self.board1_available_stats['audioB1'][0])
+            glitch_windows_stop  = len(stats_to_plot_b1)
         else:
             glitch_windows_start = self.db_glitch_start[self.glitch_cb.currentIndex()]
             glitch_windows_stop  = self.db_glitch_end[self.glitch_cb.currentIndex()]
@@ -257,39 +273,35 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         self.x2 = self.x1
 
         # Compute audio X axis
-        x_axis_audio = []
-        if len(self.record['glitch left']['start']) > 0:
-            start = int((self.record['glitch left']['start'][self.glitch_cb.currentIndex()]) * 44100)
-            end   = int((self.record['glitch left']['end'][self.glitch_cb.currentIndex()]) * 44100)
-            for j in range(end - start):
-                x_axis_audio.append((int(start/44100) + j * 1/44100) * 1000)
+        if not self.no_audio:
+            x_axis_audio = []
+            if len(self.record['glitch left']['start']) > 0:
+                start = int((self.record['glitch left']['start'][self.glitch_cb.currentIndex()]) * 44100)
+                end   = int((self.record['glitch left']['end'][self.glitch_cb.currentIndex()]) * 44100)
+                for j in range(end - start):
+                    x_axis_audio.append((int(start/44100) + j * 1/44100) * 1000)
 
-        #if bypass_glitch_window:
-        #    start = int(int(self.show_from_le.text()) * 44100)
-        #    end = int(int(self.show_to_le.text()) * 44100)
-        #    for j in range(end - start):
-        #        x_axis_audio.append((int(start/44100) + j * 1/44100) * 1000)
-        self.x3 = x_axis_audio
-        self.y3 = audio[start : end]
+            self.x3 = x_axis_audio
+            self.y3 = audio[start : end]
 
-        if bypass_glitch_window:
-            self.sinadxZoom = []
-            self.sinadyZoom = []
-            windows_fetch = False
-            start = int(int(self.show_from_le.text()) * 1000)
-            end = int(int(self.show_to_le.text()) * 1000)
-            window_start = 0
-            window_stop = 0
-            for i in range(len(self.sinadx)):
-                if (self.sinadx[i] >= start and windows_fetch == False):
-                    window_start = i
-                    windows_fetch = True
-                elif (self.sinadx[i] >= end and windows_fetch):
-                    windows_fetch = False
-                    window_stop = i
-                    break
-            self.sinadxZoom = self.sinadx[window_start : window_stop]
-            self.sinadyZoom = self.sinad[window_start : window_stop]
+            if bypass_glitch_window:
+                self.sinadxZoom = []
+                self.sinadyZoom = []
+                windows_fetch = False
+                start = int(int(self.show_from_le.text()) * 1000)
+                end = int(int(self.show_to_le.text()) * 1000)
+                window_start = 0
+                window_stop = 0
+                for i in range(len(self.sinadx)):
+                    if (self.sinadx[i] >= start and windows_fetch == False):
+                        window_start = i
+                        windows_fetch = True
+                    elif (self.sinadx[i] >= end and windows_fetch):
+                        windows_fetch = False
+                        window_stop = i
+                        break
+                self.sinadxZoom = self.sinadx[window_start : window_stop]
+                self.sinadyZoom = self.sinad[window_start : window_stop]
 
         self._update_plot()
 
@@ -305,13 +317,11 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
             cliB1.connect()
         except TimeoutError as e:
             self.log_te.append("Cant connect to board 1, check if serial is not connected elsewhere")
-            self.load_lb.setText("Cant connect to board 1, check if serial is not connected elsewhere")
             return
         try :
             cliB2.connect()
         except TimeoutError as e:
             self.log_te.append("Cant connect to board 1, check if serial is not connected elsewhere")
-            self.load_lb.setText("Cant connect to board 2, check if serial is not connected elsewhere")
             return
         self.audioB1 = cliB1.launch_audio()
         self.audioB2 = cliB2.launch_audio()
@@ -319,12 +329,11 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
             self.audioB1.set_cfg_file("board1_unidir")
             self.audioB2.set_cfg_file("board2_unidir")
         else :
-            self.audioB1.set_cfg_file("board1_unidir")
-            self.audioB2.set_cfg_file("board2_unidir")
+            self.audioB1.set_cfg_file("board1_256k")
+            self.audioB2.set_cfg_file("board2_256k")
         self.audioB1.start()
         self.audioB2.start()
         self.log_te.append("Connected to boards")
-        self.load_lb.setText("Connected to board")
         time.sleep(1)
         self.audioB1.wps.reset_stats()
         self.audioB2.wps.reset_stats()
@@ -332,9 +341,11 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         statsB2, wpsB2 = self.audioB2.get_stats()
         self._build_up_db(statsB1, wps, statsB2, wpsB2)
         self.log_te.append("DB build")
-        self.load_lb.setText("DB build")
-        self._log_register_dump()
-        self._log_board_cfg()
+        #time.sleep(1)
+        #self._log_register_dump()
+        #time.sleep(1)
+        #self._log_board_cfg()
+        #time.sleep(1)
 
     def start_test(self):
         fs = 44100  # Sample rate
@@ -367,7 +378,6 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         sd.wait()  # Wait until recording is finished
         write(self.recording_name, fs, myrecording)  # Save as WAV file
         self.log_te.append("Test finished !!!!!")
-        self.load_lb.setText("Test finished !!!!!")
         self.test_progb.setValue(100)
 
     def slider_update(self):
@@ -413,46 +423,51 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         self.writer_instance.insert(table_name, statsB1)
         self.writer_instanceB2.insert(table_nameB2, statsB2)
     def _load_b1_db(self)   :
-        db_name = self.working_dir + "audioB1TX"  # Create database in RAM
+        db_name = self.working_dir + "/audioB1TX"  # Create database in RAM
         reader_instance = DataReaderSQLite(db_name)
         return reader_instance
 
     def _load_b2_db(self):
-        db_name = self.working_dir + "audioB2TX"  # Create database in RAM
+        db_name = self.working_dir + "/audioB2TX"  # Create database in RAM
         reader_instance = DataReaderSQLite(db_name)
         return reader_instance
 
     def _update_plot(self):
-        self.sc.reload_figure(len(self.y1['data']) + len(self.y2['data']) + 2)
+        # Append 2 additionnal graph when audio is present, one for sinad, one for audio glitch
+        graph_number = len(self.y1['data']) + len(self.y2['data'])
+        if (not self.no_audio):
+            graph_number += 2
+        self.sc.reload_figure(graph_number)
         self.scrollAreaWidgetContents.resize(1400,200 * (len(self.sc.axes_array)))
-        j = 1
-        k = 1
-        self.sc.axes_array[0].plot(self.sinadxZoom, self.sinadyZoom, label='sinad')
-        self.sc.axes_array[0].legend()
-        self.sc.axes_array[0].set_title(self.g1_title)
-        self.sinadxZoom  = self.sinadx
-        self.sinadyZoom =  self.sinad
+        array_current_index = 0
+        #audio available, plot sinad
+        if (not self.no_audio):
+            self.sc.axes_array[array_current_index].plot(self.sinadxZoom, self.sinadyZoom, label='sinad')
+            self.sc.axes_array[array_current_index].legend()
+            self.sc.axes_array[array_current_index].set_title('Audio SINAD')
+            array_current_index += 1
+            self.sinadxZoom = self.sinadx
+            self.sinadyZoom = self.sinad
         for i in range(len(self.y1['data'])):
-            self.sc.axes_array[i + 1].plot(self.x1, self.y1['data'][i], label=self.y1['name'][i])
-            #self.sc.axes.plot(self.x1, self.y1['data'][i], label=self.y1['name'][i])
-            self.sc.axes_array[i + 1].legend()
-            self.sc.axes_array[i + 1].set_title(self.g1_title)
-            mplcursors.cursor(self.sc.axes_array[i + 1])
-            j = i + 2
-            k = j
+            self.sc.axes_array[array_current_index].plot(self.x1, self.y1['data'][i], label=self.y1['name'][i])
+            self.sc.axes_array[array_current_index].legend()
+            self.sc.axes_array[array_current_index].set_title(self.g1_title)
+            mplcursors.cursor(self.sc.axes_array[array_current_index])
+            array_current_index += 1
+
         for i in range(len(self.y2['data'])):
-            self.sc.axes_array[j + i].plot(self.x1, self.y2['data'][i], label=self.y2['name'][i])
-            self.sc.axes_array[j + i].legend()
-            self.sc.axes_array[j + i].set_title(self.g2_title)
-            mplcursors.cursor(self.sc.axes_array[j + i])
-            k = i + j + 1
+            self.sc.axes_array[array_current_index].plot(self.x1, self.y2['data'][i], label=self.y2['name'][i])
+            self.sc.axes_array[array_current_index].legend()
+            self.sc.axes_array[array_current_index].set_title(self.g2_title)
+            mplcursors.cursor(self.sc.axes_array[array_current_index])
+            array_current_index += 1
 
         if len(self.y3) > 0:
-            self.sc.axes_array[k].plot(self.x3, self.y3, 'r')
-            self.sc.axes_array[k].set_title(self.g3_title)
-            mplcursors.cursor(self.sc.axes_array[k])
-        # Trigger the canvas to update and redraw.
+            self.sc.axes_array[array_current_index].plot(self.x3, self.y3, 'r')
+            self.sc.axes_array[array_current_index].set_title(self.g3_title)
+            mplcursors.cursor(self.sc.axes_array[array_current_index])
 
+        # Trigger the canvas to update and redraw.
         self.sc.draw()
 
     def _clear_axis(self):

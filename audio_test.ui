@@ -187,7 +187,7 @@
      <item>
       <widget class="QPushButton" name="test_pb">
        <property name="text">
-        <string>Test</string>
+        <string>Plot data</string>
        </property>
       </widget>
      </item>
@@ -271,7 +271,7 @@
       <x>630</x>
       <y>100</y>
       <width>251</width>
-      <height>181</height>
+      <height>101</height>
      </rect>
     </property>
    </widget>
