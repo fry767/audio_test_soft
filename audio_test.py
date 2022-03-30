@@ -44,8 +44,8 @@ lib_path = os.path.abspath(os.path.join('../audio_test_bench', 'AudioAnalyzer'))
 sys.path.append(lib_path)
 import audio_analyzer as analyzer
 
-table_name   = "audioB1"
-table_nameB2 = "audioB2"
+table_name   = "board1_db"
+table_nameB2 = "board2_db"
 table_abs_time = "absTime"
 class MplCanvas(FigureCanvas):
 
@@ -82,8 +82,8 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
     g1_title = "first"
     g2_title = "second"
     g3_title = "third"
-    audioB1 = 0
-    audioB2 = 0
+    spark_cli_board1 = 0
+    spark_cli_board2 = 0
     writer_instance = 0
     writer_instanceB2 = 0
     recording_name = 0
@@ -106,6 +106,7 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         self.sinadx = []
         self.sinadxZoom = []
         self.no_audio = False
+        self.use_default_board = True
         #Board window
         self.new_window = QtWidgets.QMainWindow()
         self.board_ui = Ui_board_selector_window()
@@ -144,6 +145,11 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         self.board_selector_pb.clicked.connect(self._open_board_window)
         self.board_ui.b1_id_pb.clicked.connect(self._board_window_id_board1)
         self.board_ui.b2_id_pb.clicked.connect(self._board_window_id_board2)
+        self.board_ui.selectBoard_pb.clicked.connect(self._select_user_board)
+        self.board_ui_target_b1 = ""
+        self.board_ui_target_b2 = ""
+
+
     def select_folder (self):
         dialog = QFileDialog(self)
         self.working_dir = dialog.getExistingDirectory(self, 'Choose test output folder', os.getcwd())
@@ -155,6 +161,8 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
             self.log_te.append("Invalid stats input, length dont match")
         # TODO only one elapse time, could get one for both board
         self.elapse_time_ms = elapse_timeB1
+
+
     def analyze_audio(self):
         if os.path.exists(self.working_dir + '/audio.wav'):
             self.record = self.analyzer_rec.read_audio_file(self.working_dir + '/audio.wav')
@@ -195,6 +203,8 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         else:
             self.no_audio = True
             self.log_te.append("Cant find audio.wav files")
+
+
     def load_board_db_field(self):
         # Clear list widget of previously loaded DB
         while self.b1_stats_lw.count() > 0 :
@@ -217,6 +227,7 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
            item.setFlags(item.flags() | QtCore.Qt.ItemIsUserCheckable)
            item.setCheckState(QtCore.Qt.Unchecked)
            self.b2_stats_lw.addItem(item)
+
 
     def plot_data(self):
         glitch_windows_start = 0
@@ -305,14 +316,23 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self._update_plot()
 
+
     def connect_to_board(self):
-        if self.duo_rb.isChecked() :
-            #duo
-            cliB1 = SparkCLI('207D38A35056','../spark-dev/app/demo/common/protocol/src/proto/')
-            cliB2 = SparkCLI('207538A35056','../spark-dev/app/demo/common/protocol/src/proto/')
-        else :
-            cliB1 = SparkCLI('205A33A5484E','../spark-dev/app/demo/common/protocol/src/proto/')
-            cliB2 = SparkCLI('2082338E484E','../spark-dev/app/demo/common/protocol/src/proto/')
+        if self.use_default_board:
+            if self.duo_rb.isChecked() :
+                cliB1 = SparkCLI('207D38A35056','../spark-dev/app/demo/common/protocol/src/proto/')
+                cliB2 = SparkCLI('207538A35056','../spark-dev/app/demo/common/protocol/src/proto/')
+            else :
+                cliB1 = SparkCLI('205A33A5484E','../spark-dev/app/demo/common/protocol/src/proto/')
+                cliB2 = SparkCLI('2082338E484E','../spark-dev/app/demo/common/protocol/src/proto/')
+        else:
+            if (self.board_ui_target_b1 != "" and self.board_ui_target_b1 != ""):
+                cliB1 = SparkCLI(self.board_ui_target_b1,'../spark-dev/app/demo/common/protocol/src/proto/')
+                cliB2 = SparkCLI(self.board_ui_target_b2,'../spark-dev/app/demo/common/protocol/src/proto/')
+            else :
+                self.use_default_board = True
+                self.log_te.append("Choose a valid board on the board selector window")
+                return
         try :
             cliB1.connect()
         except TimeoutError as e:
@@ -323,28 +343,37 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         except TimeoutError as e:
             self.log_te.append("Cant connect to board 1, check if serial is not connected elsewhere")
             return
-        self.audioB1 = cliB1.launch_audio()
-        self.audioB2 = cliB2.launch_audio()
-        if self.duo_rb.isChecked() :
-            self.audioB1.set_cfg_file("board1_unidir")
-            self.audioB2.set_cfg_file("board2_unidir")
-        else :
-            self.audioB1.set_cfg_file("board1_256k")
-            self.audioB2.set_cfg_file("board2_256k")
-        self.audioB1.start()
-        self.audioB2.start()
+        if self.datacom_cb.isChecked():
+            self.no_audio = True
+            self.spark_cli_board1 = cliB1.launch_datacom_adv()
+            self.spark_cli_board2 = cliB2.launch_datacom_adv()
+            self.spark_cli_board1.set_cfg_file("datacom-board1")
+            self.spark_cli_board2.set_cfg_file("datacom-board2")
+            self.spark_cli_board1.start()
+            self.spark_cli_board2.start()
+        else:
+            self.spark_cli_board1 = cliB1.launch_audio()
+            self.spark_cli_board2 = cliB2.launch_audio()
+            if self.duo_rb.isChecked() :
+                self.spark_cli_board1.set_cfg_file("board1_unidir")
+                self.spark_cli_board2.set_cfg_file("board2_unidir")
+            else :
+                self.spark_cli_board1.set_cfg_file("board1_256k")
+                self.spark_cli_board2.set_cfg_file("board2_256k")
+            self.spark_cli_board1.start()
+            self.spark_cli_board2.start()
         self.log_te.append("Connected to boards")
         time.sleep(1)
-        self.audioB1.wps.reset_stats()
-        self.audioB2.wps.reset_stats()
-        statsB1, wps = self.audioB1.get_stats()
-        statsB2, wpsB2 = self.audioB2.get_stats()
+        self.spark_cli_board1.wps.reset_stats()
+        self.spark_cli_board2.wps.reset_stats()
+        statsB1, wps = self.spark_cli_board1.get_stats()
+        statsB2, wpsB2 = self.spark_cli_board2.get_stats()
         self._build_up_db(statsB1, wps, statsB2, wpsB2)
         self.log_te.append("DB build")
 
     def start_test(self):
         seconds = int(float(self.test_dur_le.text()) * 60)  # Duration of recording
-        if (not self.no_audio_cb.isChecked()):
+        if (not self.no_audio_cb.isChecked() and not self.no_audio):
             fs = 44100  # Sample rate
             x = sd.query_devices()
             sd.default.device = 'HD-Audio Generic: ALC1220 Analog (hw:1,0)'
@@ -352,25 +381,25 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         #Populate absolute time table in DB
         absolute_time = dict()
         absolute_time['time_0'] = datetime.timestamp(datetime.now())
-        self.audioB1.wps.reset_stats()
-        self.audioB2.wps.reset_stats()
-        self.audioB1.get_stats()
-        self.audioB1.get_stats()
-        self.audioB2.get_stats()
-        self.audioB2.get_stats()
+        self.spark_cli_board1.wps.reset_stats()
+        self.spark_cli_board2.wps.reset_stats()
+        self.spark_cli_board1.get_stats()
+        self.spark_cli_board1.get_stats()
+        self.spark_cli_board2.get_stats()
+        self.spark_cli_board2.get_stats()
         process_start = 0
         process_dur = 0
         for i in range(seconds * 5):
             if (0.2 - process_dur > 0):
                 time.sleep(0.2 - process_dur)
             process_start = datetime.timestamp(datetime.now())
-            statsB1, wps = self.audioB1.get_stats()
-            statsB2, wpsB2 = self.audioB2.get_stats()
+            statsB1, wps = self.spark_cli_board1.get_stats()
+            statsB2, wpsB2 = self.spark_cli_board2.get_stats()
             self._update_db(statsB1, wps, statsB2, wpsB2)
             self.test_progb.setValue(int(((i) / (seconds * 5)) * 100))
             process_dur = datetime.timestamp(datetime.now()) - process_start
 
-        if (not self.no_audio_cb.isChecked()):
+        if (not self.no_audio_cb.isChecked() and not self.no_audio):
             sd.wait()  # Wait until recording is finished
             write(self.recording_name, fs, myrecording)  # Save as WAV file
         self.writer_instance.insert(table_abs_time, absolute_time)
@@ -410,6 +439,7 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         self.writer_instance   = DataWriterSQLite(b1_db_name)
         self.writer_instanceB2 = DataWriterSQLite(b2_db_name)
         # Create table
+        self._rename_app_dict_keys(statsB1, statsB2)
         statsB1.update(wpsB1)
         statsB2.update(wpsB2)
 
@@ -420,14 +450,30 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         self.writer_instanceB2.create_table(table_nameB2, statsB2)
         self.writer_instanceB2.create_table(table_abs_time, absolute_time)
 
+    def _rename_app_dict_keys(self, statsB1, statsB2):
+        if 'rx' in statsB1:
+            statsB1['app_rx'] = statsB1['rx']
+            del statsB1['rx']
+        if 'rx' in statsB2:
+            statsB2['app_rx'] = statsB2['rx']
+            del statsB2['rx']
+        if 'tx' in statsB1:
+            statsB1['app_tx'] = statsB1['tx']
+            del statsB1['tx']
+        if 'tx' in statsB2:
+            statsB2['app_tx'] = statsB2['tx']
+            del statsB2['tx']
+
+
     def _update_db(self, statsB1, wpsB1, statsB2, wpsB2):
+        self._rename_app_dict_keys(statsB1, statsB2)
         statsB1.update(wpsB1)
         statsB2.update(wpsB2)
         self.writer_instance.insert(table_name, statsB1)
         self.writer_instanceB2.insert(table_nameB2, statsB2)
     def _load_b1_db(self) :
-        if (os.path.exists(self.working_dir + "/audioB1TX")):
-            db_name = self.working_dir + "/audioB1TX"  # Create database in RAM
+        if (os.path.exists(self.working_dir + "/board1_stats")):
+            db_name = self.working_dir + "/board1_stats"  # Create database in RAM
             reader_instance = DataReaderSQLite(db_name)
         else:
             db_name = self.working_dir + "/" + table_name  # Create database in RAM
@@ -435,8 +481,8 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         return reader_instance
 
     def _load_b2_db(self):
-        if (os.path.exists(self.working_dir + "/audioB2TX")):
-            db_name = self.working_dir + "/audioB2TX"  # Create database in RAM
+        if (os.path.exists(self.working_dir + "/board2_stats")):
+            db_name = self.working_dir + "/board2_stats"  # Create database in RAM
             reader_instance = DataReaderSQLite(db_name)
         else:
             db_name = self.working_dir + "/" + table_nameB2  # Create database in RAM
@@ -493,17 +539,17 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def _log_register_dump(self):
         file = open(str(self.working_test_path) + '/reg_dumpB1.txt', 'w')
-        file.write(self.audioB1.wps.dump_register())
+        file.write(self.spark_cli_board1.wps.dump_register())
         file.close()
         file = open(str(self.working_test_path) + '/reg_dumpB2.txt', 'w')
-        file.write(self.audioB2.wps.dump_register())
+        file.write(self.spark_cli_board2.wps.dump_register())
         file.close()
     def _log_board_cfg(self):
         file = open(str(self.working_test_path) + '/cfg_B1.txt', 'w')
-        file.write(json.dumps(self.audioB1.wps.get_config(), indent=4))
+        file.write(json.dumps(self.spark_cli_board1.wps.get_config(), indent=4))
         file.close()
         file = open(str(self.working_test_path) + '/cfg_B2.txt', 'w')
-        file.write(json.dumps(self.audioB2.wps.get_config(), indent=4))
+        file.write(json.dumps(self.spark_cli_board2.wps.get_config(), indent=4))
         file.close()
 
 
@@ -544,6 +590,7 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
                 id_cli.init_id()
                 break
 
+
     def _board_window_id_board2(self):
 
         lw = self.board_ui.board2_lw
@@ -558,6 +605,24 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
                     return
                 id_cli.init_id()
                 break
+
+    def _select_user_board(self):
+
+        lw = self.board_ui.board_lw
+        for i in range(lw.count()):
+            item = lw.item(i)
+            if item.checkState():
+                self.board_ui_target_b1 = self.board_ui_available_board[i]
+
+        lw = self.board_ui.board2_lw
+        for i in range(lw.count()):
+            item = lw.item(i)
+            if item.checkState():
+                self.board_ui_target_b2 = self.board_ui_available_board[i]
+
+        self.use_default_board = False
+        self.new_window.close()
+
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     window = Main()

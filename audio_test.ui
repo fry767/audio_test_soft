@@ -27,32 +27,6 @@
      <number>24</number>
     </property>
    </widget>
-   <widget class="QPushButton" name="start_test_pb">
-    <property name="geometry">
-     <rect>
-      <x>1090</x>
-      <y>40</y>
-      <width>80</width>
-      <height>23</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Start Test</string>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="Connect_pb">
-    <property name="geometry">
-     <rect>
-      <x>1000</x>
-      <y>40</y>
-      <width>80</width>
-      <height>23</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Connect </string>
-    </property>
-   </widget>
    <widget class="QWidget" name="plot_wid" native="true">
     <property name="geometry">
      <rect>
@@ -255,14 +229,14 @@
    <widget class="QRadioButton" name="duo_rb">
     <property name="geometry">
      <rect>
-      <x>1000</x>
-      <y>10</y>
-      <width>56</width>
+      <x>1030</x>
+      <y>260</y>
+      <width>151</width>
       <height>22</height>
      </rect>
     </property>
     <property name="text">
-     <string>DUO</string>
+     <string>DUO(Deprecated)</string>
     </property>
    </widget>
    <widget class="QTextEdit" name="log_te">
@@ -288,18 +262,53 @@
      <string>Board selector</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="no_audio_cb">
+   <widget class="QWidget" name="">
     <property name="geometry">
      <rect>
-      <x>1070</x>
+      <x>1000</x>
       <y>10</y>
-      <width>86</width>
-      <height>22</height>
+      <width>180</width>
+      <height>63</height>
      </rect>
     </property>
-    <property name="text">
-     <string>No Audio</string>
-    </property>
+    <layout class="QVBoxLayout" name="verticalLayout_2">
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout">
+       <item>
+        <widget class="QCheckBox" name="datacom_cb">
+         <property name="text">
+          <string>datacom</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="no_audio_cb">
+         <property name="text">
+          <string>No Audio</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_2">
+       <item>
+        <widget class="QPushButton" name="Connect_pb">
+         <property name="text">
+          <string>Connect </string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="start_test_pb">
+         <property name="text">
+          <string>Start Test</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+    </layout>
    </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
